@@ -9,7 +9,7 @@
         .container { max-width: 600px; margin: 0 auto; }
         h1 { text-align: center; font-size: 2em; margin-bottom: 5px; }
         .subtitle { text-align: center; color: #bf5329; margin-bottom: 20px; }
-        .tabs { display: flex; gap: 10px; margin-bottom: 20px; justify-content: center; }
+        .tabs { display: flex; gap: 10px; margin-bottom: 20px; justify-content: center; flex-wrap: wrap; }
         .tab { padding: 10px 20px; background: white; border: 2px solid #5d4037; cursor: pointer; border-radius: 4px; }
         .tab.active { background: #5d4037; color: white; }
         .content { display: none; }
@@ -18,10 +18,12 @@
         input[type="file"] { width: 100%; padding: 10px; border: 2px solid #d4a574; border-radius: 4px; }
         button { width: 100%; padding: 12px; background: #5d4037; color: white; border: none; cursor: pointer; font-size: 1em; margin-top: 15px; border-radius: 4px; }
         button:hover { background: #bf5329; }
-        #preview { max-width: 100%; margin: 15px 0; border-radius: 4px; display: none; }
-        #result { background: white; padding: 15px; margin: 15px 0; border-left: 5px solid #d4a574; border-radius: 4px; }
+        #preview { max-width: 100%; margin: 15px 0; border-radius: 4px; display: none; max-height: 300px; }
+        #result { background: white; padding: 15px; margin: 15px 0; border-left: 5px solid #d4a574; border-radius: 4px; white-space: pre-wrap; line-height: 1.6; }
         .item { background: white; padding: 15px; margin: 10px 0; border-left: 4px solid #d4a574; border-radius: 4px; }
         .empty { text-align: center; padding: 40px; color: #999; }
+        .error { color: #c62828; background: #ffebee; padding: 10px; border-radius: 4px; margin: 10px 0; }
+        .success { color: #2e7d32; background: #e8f5e9; padding: 10px; border-radius: 4px; margin: 10px 0; }
     </style>
 </head>
 <body>
@@ -38,7 +40,7 @@
         <!-- TAB 1: ANALYZE -->
         <div class="content show">
             <label>Upload Photo:</label>
-            <input type="file" id="file" accept="image/*">
+            <input type="file" id="file" accept="image/*" onchange="previewPhoto()">
             <img id="preview">
             <button onclick="analyzeImage()">Analyze Hallmark</button>
             <div id="result"></div>
@@ -59,74 +61,116 @@
     </div>
 
     <script>
-        // File preview
-        document.getElementById('file').addEventListener('change', function() {
-            if (this.files && this.files[0]) {
+        const API_KEY = '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';
+
+        function previewPhoto() {
+            var file = document.getElementById('file').files[0];
+            var preview = document.getElementById('preview');
+            if (file) {
                 var reader = new FileReader();
                 reader.onload = function(e) {
-                    document.getElementById('preview').src = e.target.result;
-                    document.getElementById('preview').style.display = 'block';
+                    preview.src = e.target.result;
+                    preview.style.display = 'block';
                 };
-                reader.readAsDataURL(this.files[0]);
+                reader.readAsDataURL(file);
             }
-        });
+        }
 
-        // Analyze function
         function analyzeImage() {
             var file = document.getElementById('file').files[0];
+            var resultDiv = document.getElementById('result');
+            
             if (!file) {
-                alert('Please select a photo');
+                resultDiv.innerHTML = '<div class="error">Please select a photo first</div>';
                 return;
             }
 
-            document.getElementById('result').innerHTML = '<p>Analyzing...</p>';
+            resultDiv.innerHTML = '<p>Analyzing hallmark...</p>';
 
             var reader = new FileReader();
             reader.onload = function(e) {
-                var base64 = e.target.result.split(',')[1];
-                
+                var base64String = e.target.result;
+                var base64Data = base64String.split(',')[1];
+
+                var requestBody = {
+                    model: 'claude-opus-4-1-20250805',
+                    max_tokens: 1024,
+                    messages: [
+                        {
+                            role: 'user',
+                            content: [
+                                {
+                                    type: 'image',
+                                    source: {
+                                        type: 'base64',
+                                        media_type: 'image/jpeg',
+                                        data: base64Data
+                                    }
+                                },
+                                {
+                                    type: 'text',
+                                    text: 'Analyze this jewelry hallmark image and provide: 1) Maker/Assay Mark 2) Approximate Date 3) Metal Type 4) Purity/Fineness 5) Distinctive Features 6) Geographic Location (focus on UK/European marks). Format clearly with each item on a new line.'
+                                }
+                            ]
+                        }
+                    ]
+                };
+
                 fetch('https://api.anthropic.com/v1/messages', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'x-api-key': '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',
+                        'x-api-key': API_KEY,
                         'anthropic-version': '2023-06-01'
                     },
-                    body: JSON.stringify({
-                        model: 'claude-opus-4-1-20250805',
-                        max_tokens: 1024,
-                        messages: [{
-                            role: 'user',
-                            content: [
-                                { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: base64 } },
-                                { type: 'text', text: 'Analyze this jewelry hallmark image. Provide: 1) Maker/Assay Mark 2) Date 3) Metal Type 4) Purity 5) Features 6) Location (UK/European focus)' }
-                            ]
-                        }]
-                    })
+                    body: JSON.stringify(requestBody)
                 })
-                .then(function(response) { return response.json(); })
+                .then(function(response) {
+                    if (!response.ok) {
+                        return response.text().then(function(text) {
+                            throw new Error('API Error: ' + response.status + ' - ' + text);
+                        });
+                    }
+                    return response.json();
+                })
                 .then(function(data) {
-                    var text = data.content[0].text;
-                    document.getElementById('result').innerHTML = '<div style="white-space: pre-wrap;">' + text + '</div>';
+                    if (data.content && data.content[0] && data.content[0].text) {
+                        var analysisText = data.content[0].text;
+                        
+                        resultDiv.innerHTML = '<div class="success">Analysis Complete</div><div>' + analysisText + '</div>';
 
-                    var items = JSON.parse(localStorage.getItem('items') || '[]');
-                    items.unshift({id: Date.now(), text: text.substring(0, 100) + '...'});
-                    localStorage.setItem('items', JSON.stringify(items));
+                        var items = JSON.parse(localStorage.getItem('items') || '[]');
+                        items.unshift({
+                            id: Date.now(),
+                            text: analysisText.substring(0, 150) + '...'
+                        });
+                        localStorage.setItem('items', JSON.stringify(items));
 
-                    var today = new Date().toDateString();
-                    var usage = JSON.parse(localStorage.getItem('usage') || '{"date":"","count":0}');
-                    if (usage.date === today) usage.count++; else { usage.date = today; usage.count = 1; }
-                    localStorage.setItem('usage', JSON.stringify(usage));
-                    document.getElementById('usage').innerText = usage.count + ' / 3 analyses';
+                        var today = new Date().toDateString();
+                        var usage = JSON.parse(localStorage.getItem('usage') || '{"date":"","count":0}');
+                        if (usage.date === today) {
+                            usage.count++;
+                        } else {
+                            usage.date = today;
+                            usage.count = 1;
+                        }
+                        localStorage.setItem('usage', JSON.stringify(usage));
+                        document.getElementById('usage').textContent = usage.count + ' / 3 analyses';
+
+                        if (usage.count >= 3) {
+                            resultDiv.innerHTML += '<div class="error"><strong>Daily limit reached!</strong> Upgrade to Premium for unlimited analyses.</div>';
+                        }
+                    } else {
+                        resultDiv.innerHTML = '<div class="error">No analysis received from API</div>';
+                    }
                 })
                 .catch(function(error) {
-                    document.getElementById('result').innerHTML = '<p style="color: red;">Error: ' + error.message + '</p>';
+                    resultDiv.innerHTML = '<div class="error">Error: ' + error.message + '</div>';
                 });
             };
             reader.readAsDataURL(file);
         }
 
-        // Tab switching
         function showTab(n) {
             var contents = document.querySelectorAll('.content');
             var tabs = document.querySelectorAll('.tab');
@@ -138,16 +182,21 @@
             if (n === 1) loadCollection();
         }
 
-        // Load collection
         function loadCollection() {
             var items = JSON.parse(localStorage.getItem('items') || '[]');
-            var html = items.length ? items.map(function(item) {
-                return '<div class="item">' + item.text + ' <button onclick="deleteItem(' + item.id + ')" style="width:auto; padding:5px 10px; background:#bf5329;">Delete</button></div>';
-            }).join('') : '<div class="empty">Empty</div>';
-            document.getElementById('collection').innerHTML = html;
+            var collectionDiv = document.getElementById('collection');
+
+            if (items.length === 0) {
+                collectionDiv.innerHTML = '<div class="empty">No analyses saved yet</div>';
+                return;
+            }
+
+            var html = items.map(function(item) {
+                return '<div class="item">' + item.text + '<br><button onclick="deleteItem(' + item.id + ')" style="width:auto; padding:5px 10px; margin-top:10px; background:#bf5329;">Delete</button></div>';
+            }).join('');
+            collectionDiv.innerHTML = html;
         }
 
-        // Delete item
         function deleteItem(id) {
             var items = JSON.parse(localStorage.getItem('items') || '[]');
             items = items.filter(function(item) { return item.id !== id; });
@@ -155,11 +204,16 @@
             loadCollection();
         }
 
-        // Init
-        var usage = JSON.parse(localStorage.getItem('usage') || '{"date":"","count":0}');
-        var today = new Date().toDateString();
-        if (usage.date !== today) { usage.date = today; usage.count = 0; localStorage.setItem('usage', JSON.stringify(usage)); }
-        document.getElementById('usage').innerText = usage.count + ' / 3 analyses';
+        window.addEventListener('load', function() {
+            var today = new Date().toDateString();
+            var usage = JSON.parse(localStorage.getItem('usage') || '{"date":"","count":0}');
+            if (usage.date !== today) {
+                usage.date = today;
+                usage.count = 0;
+                localStorage.setItem('usage', JSON.stringify(usage));
+            }
+            document.getElementById('usage').textContent = usage.count + ' / 3 analyses';
+        });
     </script>
 </body>
 </html>

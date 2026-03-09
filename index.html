@@ -59,6 +59,7 @@
     </div>
 
     <script>
+        // File preview
         document.getElementById('file').addEventListener('change', function() {
             if (this.files && this.files[0]) {
                 var reader = new FileReader();
@@ -70,6 +71,7 @@
             }
         });
 
+        // Analyze function
         function analyzeImage() {
             var file = document.getElementById('file').files[0];
             if (!file) {
@@ -77,20 +79,54 @@
                 return;
             }
 
-            var result = '<strong>Maker:</strong> London Assay<br><strong>Date:</strong> 1920-1930<br><strong>Metal:</strong> 18K Gold<br><strong>Purity:</strong> 750 fineness';
-            document.getElementById('result').innerHTML = result;
+            document.getElementById('result').innerHTML = '<p>Analyzing...</p>';
 
-            var items = JSON.parse(localStorage.getItem('items') || '[]');
-            items.unshift({id: Date.now(), text: 'London Assay | 1920-1930 | Gold'});
-            localStorage.setItem('items', JSON.stringify(items));
+            var reader = new FileReader();
+            reader.onload = function(e) {
+                var base64 = e.target.result.split(',')[1];
+                
+                fetch('https://api.anthropic.com/v1/messages', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-api-key': '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',
+                        'anthropic-version': '2023-06-01'
+                    },
+                    body: JSON.stringify({
+                        model: 'claude-opus-4-1-20250805',
+                        max_tokens: 1024,
+                        messages: [{
+                            role: 'user',
+                            content: [
+                                { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: base64 } },
+                                { type: 'text', text: 'Analyze this jewelry hallmark image. Provide: 1) Maker/Assay Mark 2) Date 3) Metal Type 4) Purity 5) Features 6) Location (UK/European focus)' }
+                            ]
+                        }]
+                    })
+                })
+                .then(function(response) { return response.json(); })
+                .then(function(data) {
+                    var text = data.content[0].text;
+                    document.getElementById('result').innerHTML = '<div style="white-space: pre-wrap;">' + text + '</div>';
 
-            var today = new Date().toDateString();
-            var usage = JSON.parse(localStorage.getItem('usage') || '{"date":"","count":0}');
-            if (usage.date === today) usage.count++; else { usage.date = today; usage.count = 1; }
-            localStorage.setItem('usage', JSON.stringify(usage));
-            document.getElementById('usage').innerText = usage.count + ' / 3 analyses';
+                    var items = JSON.parse(localStorage.getItem('items') || '[]');
+                    items.unshift({id: Date.now(), text: text.substring(0, 100) + '...'});
+                    localStorage.setItem('items', JSON.stringify(items));
+
+                    var today = new Date().toDateString();
+                    var usage = JSON.parse(localStorage.getItem('usage') || '{"date":"","count":0}');
+                    if (usage.date === today) usage.count++; else { usage.date = today; usage.count = 1; }
+                    localStorage.setItem('usage', JSON.stringify(usage));
+                    document.getElementById('usage').innerText = usage.count + ' / 3 analyses';
+                })
+                .catch(function(error) {
+                    document.getElementById('result').innerHTML = '<p style="color: red;">Error: ' + error.message + '</p>';
+                });
+            };
+            reader.readAsDataURL(file);
         }
 
+        // Tab switching
         function showTab(n) {
             var contents = document.querySelectorAll('.content');
             var tabs = document.querySelectorAll('.tab');
@@ -102,6 +138,7 @@
             if (n === 1) loadCollection();
         }
 
+        // Load collection
         function loadCollection() {
             var items = JSON.parse(localStorage.getItem('items') || '[]');
             var html = items.length ? items.map(function(item) {
@@ -110,6 +147,7 @@
             document.getElementById('collection').innerHTML = html;
         }
 
+        // Delete item
         function deleteItem(id) {
             var items = JSON.parse(localStorage.getItem('items') || '[]');
             items = items.filter(function(item) { return item.id !== id; });
@@ -117,6 +155,7 @@
             loadCollection();
         }
 
+        // Init
         var usage = JSON.parse(localStorage.getItem('usage') || '{"date":"","count":0}');
         var today = new Date().toDateString();
         if (usage.date !== today) { usage.date = today; usage.count = 0; localStorage.setItem('usage', JSON.stringify(usage)); }

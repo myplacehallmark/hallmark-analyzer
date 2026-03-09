@@ -184,7 +184,7 @@
                 usage.date = today;
                 usage.count = 0;
                 localStorage.setItem('hallmarkUsage', JSON.stringify(usage));
-            }
+            }<input type="file" id="photoInput" accept="image/*" onchange="previewPhoto()" onclick="this.value=''">
             
             document.getElementById('usageText').textContent = usage.count + ' / 3 analyses used today';
         };

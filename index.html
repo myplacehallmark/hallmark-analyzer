@@ -365,14 +365,6 @@
                 <img id="preview" class="preview-image" style="display: none;">
             </div>
 
-            <div class="form-group">
-                <label>API Key (Claude)</label>
-                <input type="text" id="apiKey" placeholder="sk-ant-..." value="">
-                <small style="color: var(--vintage-brown); display: block; margin-top: 5px;">
-                    Your key is stored locally on your device only
-                </small>
-            </div>
-
             <button onclick="analyzeHallmark()" style="width: 100%; margin-top: 20px;">Analyze Hallmark</button>
 
             <div id="analysisMessage"></div>
@@ -387,12 +379,6 @@
         <!-- Settings Tab -->
         <div id="settings" class="tab-content">
             <div class="settings-input">
-                <label>API Key</label>
-                <input type="text" id="settingsApiKey" placeholder="sk-ant-...">
-                <button onclick="saveApiKey()" style="margin-top: 10px; width: 100%;">Save API Key</button>
-            </div>
-
-            <div class="settings-input">
                 <h3 style="font-family: 'Playfair Display', serif; margin-bottom: 15px;">Daily Analysis Usage</h3>
                 <div style="margin-bottom: 10px;">
                     <strong id="usageText">0 / 3 analyses used today</strong>
@@ -400,28 +386,37 @@
                 <div class="usage-bar">
                     <div class="usage-fill" id="usageFill" style="width: 0%"></div>
                 </div>
-                <small style="color: var(--vintage-brown);">Premium: Unlimited analyses</small>
-            </div>
-
-            <div class="settings-input">
-                <button onclick="clearData()" class="button-secondary" style="width: 100%;">Clear All Data</button>
-                <small style="color: var(--vintage-brown); display: block; margin-top: 8px;">
-                    This will delete your API key and all saved collections.
-                </small>
+                <small style="color: var(--vintage-brown);">Free tier includes 3 analyses per day</small>
             </div>
 
             <div class="settings-input" style="border-left-color: var(--vintage-rust);">
-                <h3 style="font-family: 'Playfair Display', serif; color: var(--vintage-rust); margin-bottom: 10px;">Premium</h3>
-                <p>Get unlimited daily analyses for just <strong>$3.99/month</strong></p>
-                <button style="width: 100%; margin-top: 10px; background: var(--vintage-rust);">Coming Soon</button>
+                <h3 style="font-family: 'Playfair Display', serif; color: var(--vintage-rust); margin-bottom: 10px;">✨ Premium Membership</h3>
+                <p style="margin-bottom: 15px;">Unlock unlimited daily analyses</p>
+                <p style="font-size: 1.5em; font-weight: bold; color: var(--vintage-rust); margin-bottom: 15px;">$3.99<span style="font-size: 0.8em; color: var(--vintage-brown);">/month</span></p>
+                <button style="width: 100%; background: var(--vintage-rust); font-size: 1.1em;">Upgrade to Premium</button>
+                <small style="color: var(--vintage-brown); display: block; margin-top: 8px; text-align: center;">
+                    Coming soon - contact us to upgrade
+                </small>
+            </div>
+
+            <div class="settings-input">
+                <h3 style="font-family: 'Playfair Display', serif; margin-bottom: 10px;">About</h3>
+                <p style="font-size: 0.95em; line-height: 1.6;">
+                    Hallmark Analyzer helps you identify maker's marks, dates, metal types, and purity of jewelry hallmarks from around the world.
+                </p>
+                <p style="font-size: 0.9em; color: var(--vintage-brown); margin-top: 10px;">
+                    Version 1.0
+                </p>
             </div>
         </div>
     </div>
 
     <script>
+        // Your API Key (built-in)
+        const HALLMARK_API_KEY = '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';
+
         // Initialize app
         document.addEventListener('DOMContentLoaded', function() {
-            loadApiKey();
             updateUsageDisplay();
             loadCollection();
         });
@@ -459,23 +454,6 @@
             }
         }
 
-        function loadApiKey() {
-            const apiKey = localStorage.getItem('hallmarkApiKey');
-            if (apiKey) {
-                document.getElementById('apiKey').value = apiKey;
-                document.getElementById('settingsApiKey').value = apiKey;
-            }
-        }
-
-        function saveApiKey() {
-            const apiKey = document.getElementById('settingsApiKey').value;
-            if (apiKey.trim()) {
-                localStorage.setItem('hallmarkApiKey', apiKey);
-                document.getElementById('apiKey').value = apiKey;
-                showMessage('API Key saved successfully!', 'success', 'settings');
-            }
-        }
-
         function updateUsageDisplay() {
             const today = new Date().toDateString();
             const usage = JSON.parse(localStorage.getItem('hallmarkUsage') || '{"date": "", "count": 0}');
@@ -494,7 +472,6 @@
         }
 
         async function analyzeHallmark() {
-            const apiKey = document.getElementById('apiKey').value;
             const fileInput = document.getElementById('photoInput');
             const messageDiv = document.getElementById('analysisMessage');
             const resultDiv = document.getElementById('analysisResult');
@@ -503,11 +480,6 @@
             resultDiv.innerHTML = '';
 
             // Validation
-            if (!apiKey.trim()) {
-                showMessage('Please enter your Claude API key in Settings', 'error', 'analyze');
-                return;
-            }
-
             if (!fileInput.files || !fileInput.files[0]) {
                 showMessage('Please select a photo of the hallmark', 'error', 'analyze');
                 return;
@@ -533,7 +505,7 @@
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
-                            'x-api-key': apiKey,
+                            'x-api-key': HALLMARK_API_KEY,
                             'anthropic-version': '2023-06-01'
                         },
                         body: JSON.stringify({
@@ -655,17 +627,6 @@ Format your response clearly with these categories.`
             const messageDiv = document.getElementById(tab + 'Message') || document.getElementById('analysisMessage');
             messageDiv.innerHTML = `<div class="message ${type}">${text}</div>`;
         }
-
-        function clearData() {
-            if (confirm('Are you sure? This will delete your API key and all collections.')) {
-                localStorage.clear();
-                loadApiKey();
-                updateUsageDisplay();
-                loadCollection();
-                showMessage('All data cleared', 'success', 'settings');
-            }
-        }
     </script>
 </body>
 </html>
-
